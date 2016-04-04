@@ -50,6 +50,10 @@ var (
 	routes              = make(map[string]*Route)
 )
 
+func GetRoutes() map[string]*Route {
+	return routes
+}
+
 // SetErrorHook lets you set your own error hook.
 func SetErrorHook(eh ErrorHook) {
 	if eh != nil {
@@ -73,6 +77,13 @@ func GetExecHook() ExecHook {
 
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
+
+func SwaggerExecHook(c *gin.Context, h gin.HandlerFunc, fname string) {
+	if r, ok := routes[fname]; ok {
+		r.Path = c.Request.URL.Path
+		r.Method = c.Request.Method
+	}
+}
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
@@ -110,7 +121,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
 			panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
 		} else {
-			typeIn = ftype.In(1).Elem()
+			typeIn = ftype.In(1)
 		}
 	}
 
@@ -123,7 +134,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
-		typeOut = ftype.Out(0).Elem()
+		typeOut = ftype.Out(0)
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
@@ -243,7 +254,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 
 func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, defval, err := extractTag(tag, true)
+	name, required, defval, err := ExtractTag(tag, true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -263,7 +274,7 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
 func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, _, err := extractTag(tag, false)
+	name, required, _, err := ExtractTag(tag, false)
 	if err != nil {
 		return "", nil, err
 	}
@@ -275,7 +286,7 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 	return name, []string{out}, nil
 }
 
-func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
+func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 
 	parts := strings.SplitN(tag, ",", -1)
 	name := parts[0]
