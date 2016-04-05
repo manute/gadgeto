@@ -78,13 +78,6 @@ func GetExecHook() ExecHook {
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
 
-func SwaggerExecHook(c *gin.Context, h gin.HandlerFunc, fname string) {
-	if r, ok := routes[fname]; ok {
-		r.Path = c.Request.URL.Path
-		r.Method = c.Request.Method
-	}
-}
-
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
 // The tonic handler may use the following signature:
